@@ -5,7 +5,7 @@ Provides integration between the [Farm Sensor](http://drupal.org/project/farm_se
 [Atmospi](http://github.com/mstenta/atmospi) devices.
 
 Atmospi sensors can be added to farmOS and assigned to areas. Sensor readings are displayed in the
-area details popup in farm maps.
+area details popup in farm maps. The Atmospi page is embedded in the sensor view page via an iframe.
 
 DEPENDENCIES
 ------------
