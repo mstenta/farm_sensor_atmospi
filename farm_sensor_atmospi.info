@@ -1,0 +1,5 @@
+name = Farm Sensor: Atmospi
+description = Integrates farmOS and Atmospi sensors.
+core = 7.x
+package = farmOS
+dependencies[] = farm_sensor

@@ -1,0 +1,179 @@
+<?php
+
+/**
+ * @file
+ * Code for the Farm Sensor feature.
+ */
+
+/**
+ * Implements hook_farm_sensor_type_info().
+ */
+function farm_sensor_atmospi_farm_sensor_type_info() {
+  return array(
+    'atmospi' => array(
+      'label' => t('Atmospi'),
+      'description' => t('Raspberry Pi atmospheric sensor app. ') . l('github.com/mstenta/atmospi', 'http://github.com/mstenta/atmospi'),
+      'form' => 'farm_sensor_atmospi_settings_form',
+    ),
+  );
+}
+
+/**
+ * Atmospi sensor settings form.
+ *
+ * @param array $settings
+ *   The farm sensor settings.
+ *
+ * @return array
+ *   Returns a form with settings for this Atmospi sensor.
+ */
+function farm_sensor_atmospi_settings_form($settings = array()) {;
+
+  // URL of the Atmospi.
+  $form['url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Atmospi URL'),
+    '#description' => t('The URL of the Atmospi.'),
+    '#default_value' => !empty($settings['url']) ? $settings['url'] : '',
+  );
+
+  return $form;
+}
+
+/**
+ * Implements hook_farm_area_details().
+ */
+function farm_sensor_atmospi_farm_area_details($id) {
+
+  // Start an output array.
+  $output = array();
+
+  // Load atmospi sensors in this area.
+  $sensors = farm_sensor_area_sensors($id, 'atmospi');
+
+  // Iterate through the sensors.
+  foreach ($sensors as $sensor) {
+
+    // Load settings from the actual Atmospi device.
+    $settings = farm_sensor_atmospi_settings($sensor);
+
+    // If the settings didn't come through, skip the device.
+    if (empty($settings)) {
+      continue;
+    }
+
+    // Add temperature readings.
+    if ($data = farm_sensor_atmospi_latest_data($sensor, 'temperature')) {
+      foreach ($data as $device => $temperature) {
+        $output[] = array(
+          '#markup' => '<p>' . $device . ': ' . $temperature[1] . '&deg;' . $settings['t_unit'] . ' (as of ' . date('m/d/Y H:i', $temperature[0]) . ')</p>',
+        );
+      }
+    }
+
+    // Add humidity readings.
+    if ($data = farm_sensor_atmospi_latest_data($sensor, 'humidity')) {
+      foreach ($data as $device => $humidity) {
+        $output[] = array(
+          '#markup' => '<p>' . $device . ': ' . $humidity[1] . '% humidity (as of ' . date('m/d/Y H:i', $humidity[0]) . ')</p>',
+        );
+      }
+    }
+  }
+
+  // Return the output array.
+  return $output;
+}
+
+/**
+ * Request latest data from Atmospi.
+ *
+ * @param FarmAsset $sensor
+ *   The sensor asset object.
+ * @param string $type
+ *   The data type to request. Valid options are: 'temperature' and 'humidity'
+ *
+ * @return array|bool
+ *   Returns an array of data, or FALSE if the request fails.
+ */
+function farm_sensor_atmospi_latest_data(FarmAsset $sensor, $type = 'temperature') {
+
+  // If the type is not a valid option, bail.
+  $types = array(
+    'temperature',
+    'humidity',
+  );
+  if (!in_array($type, $types)) {
+    return FALSE;
+  }
+
+  // Build the path for retrieving the latest readings.
+  $path = 'data/latest/' . $type;
+
+  // Request the data.
+  $data = _farm_sensor_atmospi_request($sensor, $path);
+
+  // If the data is not an array, or is empty, bail.
+  if (empty($data) || !is_array($data)) {
+    return FALSE;
+  }
+
+  // Convert timestamps from milliseconds to seconds.
+  foreach ($data as &$point) {
+    $point[0] = $point[0] / 1000;
+  }
+
+  // Return it.
+  return $data;
+}
+
+/**
+ * Request settings from Atmospi.
+ *
+ * @param FarmAsset $sensor
+ *   The sensor asset object.
+ *
+ * @return array|bool
+ *   Returns an array of data, or FALSE if the request fails.
+ */
+function farm_sensor_atmospi_settings(FarmAsset $sensor) {
+
+  // Get the Atmospi's settings.
+  return _farm_sensor_atmospi_request($sensor, 'settings');
+}
+
+/**
+ * Helper function for requesting data from an Atmospi.
+ *
+ * @param FarmAsset $sensor
+ *   The sensor asset object.
+ * @param string $path
+ *   The URL path to append after the Atmospi URL.
+ *
+ * @return array|bool
+ *   Returns an array of data, or FALSE if the request fails.
+ */
+function _farm_sensor_atmospi_request(FarmAsset $sensor, $path) {
+
+  // Build the URL.
+  $url = $sensor->sensor_settings['url'] . '/' . $path;
+
+  // Send an HTTP request to the Atmospi.
+  $response = drupal_http_request($url);
+
+  // If data is not available, or the request failed, skip.
+  if (empty($response->data) || $response->code != 200) {
+    return FALSE;
+  }
+
+  // Process the JSON response.
+  $data = drupal_json_decode($response->data);
+
+  // If the data is not an array, or is empty, bail.
+  if (empty($data) || !is_array($data)) {
+    return FALSE;
+  }
+
+  // Return it.
+  return $data;
+}
