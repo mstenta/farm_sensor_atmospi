@@ -21,13 +21,15 @@ function farm_sensor_atmospi_farm_sensor_type_info() {
 /**
  * Atmospi sensor settings form.
  *
+ * @param FarmAsset $sensor
+ *   The sensor asset entity.
  * @param array $settings
  *   The farm sensor settings.
  *
  * @return array
  *   Returns a form with settings for this Atmospi sensor.
  */
-function farm_sensor_atmospi_settings_form($settings = array()) {;
+function farm_sensor_atmospi_settings_form($sensor, $settings = array()) {;
 
   // URL of the Atmospi.
   $form['url'] = array(
